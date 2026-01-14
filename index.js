@@ -62,40 +62,11 @@ client.once('ready', async () => {
     
     loadData();
     
-    // Enregistrer les commandes slash
-    const commands = [
-        {
-            name: 'regle',
-            description: 'Affiche le règlement du serveur'
-        },
-        {
-            name: 'jobs_setup',
-            description: 'Configure le système de jobs (Admin uniquement)'
-        },
-        {
-            name: 'jobs',
-            description: 'Affiche la liste des jobs disponibles'
-        },
-        {
-            name: 'deljobs',
-            description: 'Supprime le message de la liste des jobs (Admin uniquement)'
-        },
-        {
-            name: 'command',
-            description: 'Affiche la liste des commandes du bot'
-        }
-    ];
-
-    try {
-        await client.application.commands.set(commands);
-        console.log('✅ Commandes slash enregistrées');
-    } catch (error) {
-        console.error('❌ Erreur lors de l\'enregistrement des commandes:', error);
-    }
+    console.log('✅ Bot prêt à recevoir des commandes avec !');
 
     // Définir le statut du bot
     client.user.setPresence({
-        activities: [{ name: 'Vanesty RP | Légal 🎮', type: 0 }],
+        activities: [{ name: 'Vanesty RP | Légal 🎮 | !command', type: 0 }],
         status: 'online',
     });
 });
@@ -121,7 +92,7 @@ client.on('guildMemberAdd', async (member) => {
                 { name: '📅 Compte créé le', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:D>`, inline: true },
                 { name: '📜 Règlement', value: `Consulte le règlement dans <#${CONFIG.RULES_CHANNEL}>`, inline: false }
             )
-            .setFooter({ text: 'Vanesty RP | Légal', iconURL: member.guild.iconURL() })
+            .setFooter({ text: '🌴Vanesty RP | FiveM🐌', iconURL: member.guild.iconURL() })
             .setTimestamp();
 
         await channel.send({ embeds: [embed] });
@@ -414,17 +385,21 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-// ==================== COMMANDES SLASH ====================
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
+// ==================== COMMANDES AVEC PRÉFIXE ! ====================
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (!message.content.startsWith('!')) return;
+
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
 
     try {
-        // Commande /regle
-        if (interaction.commandName === 'regle') {
-            const channel = interaction.guild.channels.cache.get(CONFIG.RULES_CHANNEL);
+        // Commande !regle
+        if (command === 'regle') {
+            const channel = message.guild.channels.cache.get(CONFIG.RULES_CHANNEL);
             
             if (!channel) {
-                return interaction.reply({ content: '❌ Canal de règlement introuvable.', ephemeral: true });
+                return message.reply('❌ Canal de règlement introuvable.');
             }
 
             const embed = new EmbedBuilder()
@@ -435,22 +410,22 @@ client.on('interactionCreate', async (interaction) => {
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
-            await interaction.reply({ content: `✅ Règlement envoyé dans ${channel} !`, ephemeral: true });
-            console.log(`📜 Règlement publié par ${interaction.user.tag}`);
+            await message.reply(`✅ Règlement envoyé dans ${channel} !`);
+            console.log(`📜 Règlement publié par ${message.author.tag}`);
         }
 
-        // Commande /jobs_setup
-        if (interaction.commandName === 'jobs_setup') {
-            if (interaction.channel.id !== CONFIG.JOBS_CHANNEL) {
-                return interaction.reply({ content: `❌ Cette commande ne peut être utilisée que dans <#${CONFIG.JOBS_CHANNEL}>.`, ephemeral: true });
+        // Commande !jobs_setup
+        if (command === 'jobs_setup') {
+            if (message.channel.id !== CONFIG.JOBS_CHANNEL) {
+                return message.reply(`❌ Cette commande ne peut être utilisée que dans <#${CONFIG.JOBS_CHANNEL}>.`);
             }
 
             const hasStaffRole = CONFIG.STAFF_ROLES.some(roleId => 
-                interaction.member.roles.cache.has(roleId)
+                message.member.roles.cache.has(roleId)
             );
 
-            if (!hasStaffRole && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                return interaction.reply({ content: '❌ Vous n\'avez pas la permission d\'utiliser cette commande.', ephemeral: true });
+            if (!hasStaffRole && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return message.reply('❌ Vous n\'avez pas la permission d\'utiliser cette commande.');
             }
 
             const embed = new EmbedBuilder()
@@ -484,14 +459,14 @@ client.on('interactionCreate', async (interaction) => {
                         .setEmoji('🗑️')
                 );
 
-            await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-            console.log(`🏢 Dashboard jobs ouvert par ${interaction.user.tag}`);
+            await message.reply({ embeds: [embed], components: [row] });
+            console.log(`🏢 Dashboard jobs ouvert par ${message.author.tag}`);
         }
 
-        // Commande /jobs
-        if (interaction.commandName === 'jobs') {
+        // Commande !jobs
+        if (command === 'jobs') {
             if (jobsData.length === 0) {
-                return interaction.reply({ content: '❌ Aucune entreprise enregistrée pour le moment.', ephemeral: true });
+                return message.reply('❌ Aucune entreprise enregistrée pour le moment.');
             }
 
             const embed = new EmbedBuilder()
@@ -510,21 +485,21 @@ client.on('interactionCreate', async (interaction) => {
                 });
             });
 
-            await interaction.reply({ embeds: [embed] });
-            console.log(`📋 Liste des jobs affichée par ${interaction.user.tag}`);
+            await message.reply({ embeds: [embed] });
+            console.log(`📋 Liste des jobs affichée par ${message.author.tag}`);
         }
 
-        // Commande /deljobs
-        if (interaction.commandName === 'deljobs') {
+        // Commande !deljobs
+        if (command === 'deljobs') {
             const hasStaffRole = CONFIG.STAFF_ROLES.some(roleId => 
-                interaction.member.roles.cache.has(roleId)
+                message.member.roles.cache.has(roleId)
             );
 
-            if (!hasStaffRole && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                return interaction.reply({ content: '❌ Vous n\'avez pas la permission d\'utiliser cette commande.', ephemeral: true });
+            if (!hasStaffRole && !message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return message.reply('❌ Vous n\'avez pas la permission d\'utiliser cette commande.');
             }
 
-            const messages = await interaction.channel.messages.fetch({ limit: 50 });
+            const messages = await message.channel.messages.fetch({ limit: 50 });
             const jobMessages = messages.filter(m => 
                 m.author.id === client.user.id && 
                 m.embeds.length > 0 && 
@@ -532,20 +507,20 @@ client.on('interactionCreate', async (interaction) => {
             );
 
             if (jobMessages.size === 0) {
-                return interaction.reply({ content: '❌ Aucun message de jobs trouvé dans ce salon.', ephemeral: true });
+                return message.reply('❌ Aucun message de jobs trouvé dans ce salon.');
             }
 
             await Promise.all(jobMessages.map(m => m.delete()));
-            await interaction.reply({ content: `✅ ${jobMessages.size} message(s) de jobs supprimé(s) avec succès.`, ephemeral: true });
-            console.log(`🗑️ Messages de jobs supprimés par ${interaction.user.tag}`);
+            await message.reply(`✅ ${jobMessages.size} message(s) de jobs supprimé(s) avec succès.`);
+            console.log(`🗑️ Messages de jobs supprimés par ${message.author.tag}`);
         }
 
-        // Commande /command
-        if (interaction.commandName === 'command') {
-            const channel = interaction.guild.channels.cache.get(CONFIG.COMMANDS_CHANNEL);
+        // Commande !command
+        if (command === 'command' || command === 'commands' || command === 'help' || command === 'aide') {
+            const channel = message.guild.channels.cache.get(CONFIG.COMMANDS_CHANNEL);
             
             if (!channel) {
-                return interaction.reply({ content: '❌ Canal de commandes introuvable.', ephemeral: true });
+                return message.reply('❌ Canal de commandes introuvable.');
             }
 
             const embed = new EmbedBuilder()
@@ -569,27 +544,27 @@ client.on('interactionCreate', async (interaction) => {
                         inline: false 
                     },
                     { 
-                        name: '`/regle`', 
+                        name: '`!regle`', 
                         value: `Publie le règlement du serveur dans <#${CONFIG.RULES_CHANNEL}>.`, 
                         inline: true 
                     },
                     { 
-                        name: '`/jobs_setup`', 
+                        name: '`!jobs_setup`', 
                         value: 'Ouvre le dashboard de gestion des entreprises (Admin/Staff uniquement).', 
                         inline: true 
                     },
                     { 
-                        name: '`/jobs`', 
+                        name: '`!jobs`', 
                         value: 'Affiche la liste complète des entreprises avec leurs patrons et liens Discord.', 
                         inline: true 
                     },
                     { 
-                        name: '`/deljobs`', 
+                        name: '`!deljobs`', 
                         value: 'Supprime les anciens messages de la liste des jobs (Admin/Staff uniquement).', 
                         inline: true 
                     },
                     { 
-                        name: '`/command`', 
+                        name: '`!command` / `!help`', 
                         value: 'Affiche cette liste de commandes et fonctionnalités.', 
                         inline: true 
                     }
@@ -598,14 +573,12 @@ client.on('interactionCreate', async (interaction) => {
                 .setTimestamp();
 
             await channel.send({ embeds: [embed] });
-            await interaction.reply({ content: `✅ Liste des commandes envoyée dans ${channel} !`, ephemeral: true });
-            console.log(`📋 Liste des commandes publiée par ${interaction.user.tag}`);
+            await message.reply(`✅ Liste des commandes envoyée dans ${channel} !`);
+            console.log(`📋 Liste des commandes publiée par ${message.author.tag}`);
         }
     } catch (error) {
         console.error('❌ Erreur lors de l\'exécution de la commande:', error);
-        if (!interaction.replied) {
-            await interaction.reply({ content: '❌ Une erreur est survenue lors de l\'exécution de la commande.', ephemeral: true });
-        }
+        message.reply('❌ Une erreur est survenue lors de l\'exécution de la commande.').catch(() => {});
     }
 });
 
@@ -749,6 +722,51 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 });
+
+// ==================== COMMANDE !SendGOUV ====================
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+    if (message.content.toLowerCase() !== '!sendgouv') return;
+
+    try {
+        const embed = new EmbedBuilder()
+            .setColor('#FFD700') // Bordure jaune or
+            .setTitle('🎖️ Bienvenue sur le serveur officiel du Gouvernement de Vanesty 🎖️')
+            .setDescription('📎 **Invitation :** https://discord.gg/nT7YeNEuBf\n\nCe serveur est l\'espace central pour tout ce qui touche au gouvernement de Vanesty : rôle politique, administration, annonces publiques, débats, recrutement et événements RP. Que tu souhaites incarner un élu, travailler dans l\'administration ou simplement participer en tant que citoyen, tu trouveras ta place ici.')
+            .addFields(
+                {
+                    name: '📋 Ce que tu y trouveras :',
+                    value: '• 🏛️ **Chambres officielles** — sessions, lois et débats publics.\n• 📢 **Annonces & communiqués** — décisions importantes et calendriers.\n• 🧾 **Services administratifs** — demandes, formulaires RP et procédures.\n• 🤝 **Recrutement & partenariats** — candidatures pour postes RP au sein du gouvernement.\n• 🎫 **Événements** — conférences, audiences publiques, simulations.\n• 💬 **Canaux citoyens** — questions, suggestions et participation publique.',
+                    inline: false
+                },
+                {
+                    name: '⚖️ Règles (résumé) :',
+                    value: '• Respect et sérieux pendant les sessions officielles.\n• Pas de harcèlement, d\'insultes ou de contenu discriminatoire.\n• Distinction RP / HRP : respect des consignes lorsque demandé.\n• Utilise les canaux appropriés pour chaque type de discussion.',
+                    inline: false
+                },
+                {
+                    name: '🚀 Comment commencer :',
+                    value: '1. Clique sur le lien : https://discord.gg/nT7YeNEuBf\n2. Lis les règles.\n3. Présente-toi dans #Présentation (Nom et Prénom).\n4. Postule si tu veux rejoindre une institution.',
+                    inline: false
+                },
+                {
+                    name: '❓ Questions ?',
+                    value: 'Contacte un membre de la direction via message privé ou ouvre un ticket.',
+                    inline: false
+                }
+            )
+            .setFooter({ text: '🔔 Rejoins-nous et participe à la construction du Vanesty politique — ta voix compte !' })
+            .setTimestamp();
+
+        await message.channel.send({ embeds: [embed] });
+        await message.delete().catch(() => {}); // Supprime la commande
+        console.log(`🎖️ Message GOUV envoyé par ${message.author.tag}`);
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'envoi du message GOUV:', error);
+        message.reply('❌ Une erreur est survenue lors de l\'envoi du message.').catch(() => {});
+    }
+});
+
 
 // Gestion des erreurs globales
 process.on('unhandledRejection', error => {
